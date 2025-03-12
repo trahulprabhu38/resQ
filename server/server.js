@@ -24,7 +24,15 @@ app.use((req, res, next) => {
 const connectDB = async () => {
   try {
     console.log('=== MongoDB Connection Setup ===');
-    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://trahulprabhu38:5z2voIVAuo5O3tgK@cluster0.hhxbe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
+    let mongoURI; // Declare it outside the blocks
+
+    if (process.env.NODE_ENV === 'development') {
+        mongoURI = "mongodb://localhost:27017/resq";
+    } else {
+        mongoURI = process.env.MONGODB_URI || 'mongodb+srv://trahulprabhu38:5z2voIVAuo5O3tgK@cluster0.hhxbe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+    }
+
     console.log('Attempting to connect to MongoDB at:', mongoURI);
     
     await mongoose.connect(mongoURI, {
@@ -33,22 +41,12 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000
     });
 
-    console.log('MongoDB Connected Successfully');
-    
-    // Test the connection
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
+    console.log('MongoDB Connected Successfully',mongoURI);
 
-  } catch (error) {
+} catch (error) {
     console.error('=== MongoDB Connection Error ===');
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
-    process.exit(1);
-  }
+    console.error('Error details:', error);
+}
 };
 
 // Handle MongoDB connection errors after initial connection

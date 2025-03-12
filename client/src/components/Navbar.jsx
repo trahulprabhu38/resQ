@@ -23,18 +23,7 @@ const Navbar = () => {
         </RouterLink>
         
         <nav className="nav-links">
-          <RouterLink to="/how-it-works" className="nav-link">
-            How It Works
-          </RouterLink>
-          <RouterLink to="/features" className="nav-link">
-            Features
-          </RouterLink>
-          <RouterLink to="/for-medical" className="nav-link">
-            For Medical Staff
-          </RouterLink>
-          <RouterLink to="/about" className="nav-link">
-            About Us
-          </RouterLink>
+          
           {user ? (
             <>
               <Button

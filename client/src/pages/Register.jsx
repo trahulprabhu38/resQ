@@ -97,7 +97,7 @@ const Register = () => {
 
   return (
     <PageWrapper>
-      <Paper elevation={3} sx={{ p: 4, maxWidth: 600, width: '100%', mx: 'auto' }}>
+      <Paper elevation={3} sx={{ p: 4, maxWidth: 600, width: '100%', mx: 'auto', mt: '100px' }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Register {role === 'medical_staff' ? 'as Medical Staff' : 'as Patient'}
         </Typography>

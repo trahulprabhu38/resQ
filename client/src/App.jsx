@@ -33,45 +33,49 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/secret-admin-setup-2024" element={<AdminRegister />} />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/medical-info"
-              element={
-                <PrivateRoute>
-                  <MedicalInfo />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/scan"
-              element={
-                <PrivateRoute allowedRoles={['medical_staff']} requireVerification={true}>
-                  <QRScanner />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <PrivateRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
+          <div className="app-wrapper">
+            <Navbar />
+            <main className="main-content">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/secret-admin-setup-2024" element={<AdminRegister />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/medical-info"
+                  element={
+                    <PrivateRoute>
+                      <MedicalInfo />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/scan"
+                  element={
+                    <PrivateRoute allowedRoles={['medical_staff']} requireVerification={true}>
+                      <QRScanner />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <PrivateRoute allowedRoles={['admin']}>
+                      <AdminDashboard />
+                    </PrivateRoute>
+                  }
+                />
+              </Routes>
+            </main>
+          </div>
         </Router>
       </AuthProvider>
     </ThemeProvider>
