@@ -5,8 +5,7 @@ const dotenv = require('dotenv');
 const QRCode = require('qrcode');
 
 // Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
-dotenv.config({ path: envFile });
+dotenv.config({});
 
 const app = express();
 
@@ -33,13 +32,7 @@ const connectDB = async () => {
     
     mongoose.set('strictQuery', false);
 
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: process.env.NODE_ENV === 'production' ? 30000 : 5000,
-      socketTimeoutMS: 45000,
-      family: 4
-    });
+    await mongoose.connect(process.env.MONGODB_URI, {});
 
     console.log('✅ MongoDB Connected Successfully');
   } catch (error) {
