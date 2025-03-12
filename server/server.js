@@ -4,68 +4,82 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const QRCode = require('qrcode');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: envFile });
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN,
+  credentials: true
+}));
 app.use(express.json());
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  console.log('Request Body:', req.body);
-  next();
-});
+// Request logging middleware (only in development)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    console.log('Request Body:', req.body);
+    next();
+  });
+}
 
 // MongoDB Connection
 const connectDB = async () => {
   try {
-    console.log('=== MongoDB Connection Setup ===');
-
-    let mongoURI; // Declare it outside the blocks
-
-    if (process.env.NODE_ENV === 'development') {
-        mongoURI = "mongodb://localhost:27017/resq";
-    } else {
-        mongoURI = process.env.MONGODB_URI || 'mongodb+srv://trahulprabhu38:5z2voIVAuo5O3tgK@cluster0.hhxbe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-    }
-
-    console.log('Attempting to connect to MongoDB at:', mongoURI);
+    console.log(`=== MongoDB Connection Setup (${process.env.NODE_ENV}) ===`);
     
-    await mongoose.connect(mongoURI, {
+    mongoose.set('strictQuery', false);
+
+    await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000
+      serverSelectionTimeoutMS: process.env.NODE_ENV === 'production' ? 30000 : 5000,
+      socketTimeoutMS: 45000,
+      family: 4
     });
 
-    console.log('MongoDB Connected Successfully',mongoURI);
-
-} catch (error) {
-    console.error('=== MongoDB Connection Error ===');
+    console.log('✅ MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('🚨 === MongoDB Connection Error ===');
     console.error('Error details:', error);
-}
+    
+    if (process.env.NODE_ENV === 'production') {
+      // In production, retry connection
+      console.log('Retrying connection in 5 seconds...');
+      setTimeout(connectDB, 5000);
+    } else {
+      // In development, exit process
+      process.exit(1);
+    }
+  }
 };
 
 // Handle MongoDB connection errors after initial connection
 mongoose.connection.on('error', err => {
-  console.error('=== MongoDB Runtime Error ===');
+  console.error(`=== MongoDB Runtime Error (${process.env.NODE_ENV}) ===`);
   console.error('Error details:', {
     name: err.name,
     message: err.message,
     code: err.code
   });
+  
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(connectDB, 5000);
+  }
 });
 
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected, attempting to reconnect...');
-  connectDB();
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(connectDB, 5000);
+  }
 });
 
 mongoose.connection.on('connected', () => {
-  console.log('MongoDB connected');
+  console.log(`MongoDB connected (${process.env.NODE_ENV})`);
 });
 
 // Connect to MongoDB before starting the server
@@ -83,16 +97,23 @@ connectDB().then(async () => {
     console.error('Error details:', {
       name: err.name,
       message: err.message,
-      stack: err.stack
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
-    res.status(500).json({ 
-      message: 'Something went wrong!',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    
+    // Send appropriate error response
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ 
+      success: false,
+      message: err.message || 'Something went wrong!',
+      error: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   });
 
   const PORT = process.env.PORT || 5001;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    console.log(`CORS enabled for origin: ${process.env.CORS_ORIGIN}`);
+  });
 }).catch(err => {
   console.error('Failed to start server:', err);
   process.exit(1);

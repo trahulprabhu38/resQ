@@ -25,6 +25,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import EditIcon from '@mui/icons-material/Edit';
 import PageWrapper from '../components/PageWrapper';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 
 const MedicalInfo = () => {
   const { token, user, isAuthenticated } = useAuth();
@@ -195,79 +196,73 @@ const MedicalInfo = () => {
     }
 
     try {
+      setError('');
+      setSuccess('');
+      
       // Validate required fields
       if (!medicalInfo.bloodType) {
         setError('Please select a blood type');
         return;
       }
 
-      // Prepare the data to send
+      // Clean the data before sending
       const dataToSend = {
-        ...medicalInfo,
+        bloodType: medicalInfo.bloodType,
         allergies: medicalInfo.allergies.filter(allergy => allergy.trim() !== ''),
-        medications: medicalInfo.medications.filter(med => med.name.trim() !== ''),
-        conditions: medicalInfo.conditions.filter(condition => condition.trim() !== '')
+        medications: medicalInfo.medications.filter(med => med.name.trim() !== '').map(med => ({
+          name: med.name.trim(),
+          dosage: med.dosage?.trim() || '',
+          frequency: med.frequency?.trim() || ''
+        })),
+        conditions: medicalInfo.conditions.filter(condition => condition.trim() !== ''),
+        emergencyContact: {
+          name: medicalInfo.emergencyContact?.name?.trim() || '',
+          relationship: medicalInfo.emergencyContact?.relationship?.trim() || '',
+          phone: medicalInfo.emergencyContact?.phone?.trim() || ''
+        },
+        insuranceInfo: {
+          provider: medicalInfo.insuranceInfo?.provider?.trim() || '',
+          policyNumber: medicalInfo.insuranceInfo?.policyNumber?.trim() || '',
+          groupNumber: medicalInfo.insuranceInfo?.groupNumber?.trim() || ''
+        }
       };
 
-      console.log('=== Sending Medical Info ===');
-      console.log('Data to send:', JSON.stringify(dataToSend, null, 2));
-
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/medical`, dataToSend, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      console.log('Sending medical info update...', dataToSend);
+      
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/medical/update`,
+        dataToSend,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
-      console.log('=== Server Response ===');
-      console.log('Response data:', JSON.stringify(response.data, null, 2));
-
-      if (response.data) {
-        // Update the state with the new data
-        const updatedData = {
-          bloodType: response.data.bloodType || '',
-          allergies: Array.isArray(response.data.allergies) ? response.data.allergies : [],
-          medications: Array.isArray(response.data.medications) ? response.data.medications : [],
-          conditions: Array.isArray(response.data.conditions) ? response.data.conditions : [],
-          emergencyContact: {
-            name: response.data.emergencyContact?.name || '',
-            relationship: response.data.emergencyContact?.relationship || '',
-            phone: response.data.emergencyContact?.phone || '',
-          },
-          lastUpdated: response.data.lastUpdated || new Date().toISOString()
-        };
-
-        console.log('Updating state with:', updatedData);
-        setMedicalInfo(updatedData);
-        
-        if (response.data.qrCode) {
-          console.log('Setting QR code');
-          setQrCode(response.data.qrCode);
+      if (response.data.success) {
+        const updatedInfo = response.data.data;
+        setMedicalInfo(prevState => ({
+          ...prevState,
+          ...updatedInfo,
+          emergencyContact: updatedInfo.emergencyContact || {},
+          insuranceInfo: updatedInfo.insuranceInfo || {}
+        }));
+        if (updatedInfo.qrCode) {
+          setQrCode(updatedInfo.qrCode);
         }
-
         setSuccess('Medical information updated successfully');
-        setError('');
         setIsEditing(false);
-        
-        // Switch to the details view
         setTabValue(0);
       } else {
-        throw new Error('No data received from server');
+        throw new Error(response.data.message || 'Failed to update medical information');
       }
     } catch (err) {
-      console.error('=== Medical Info Update Error ===');
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status
-      });
-
+      console.error('Update error:', err);
+      setError(err.response?.data?.message || 'Error updating medical information');
       if (err.response?.status === 401) {
         navigate('/login');
-      } else {
-        setError(err.response?.data?.message || 'Error updating medical information');
       }
-      setSuccess('');
     }
   };
 
@@ -718,13 +713,20 @@ const MedicalInfo = () => {
       <Paper 
         elevation={3} 
         sx={{ 
-          p: 4,
+          p: { xs: 2, sm: 3, md: 4 },
           height: '100%',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}
       >
-        <Typography variant="h4" component="h1" gutterBottom align="center">
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          gutterBottom 
+          align="center"
+          sx={{ mb: 3 }}
+        >
           Medical Information
         </Typography>
         
@@ -742,13 +744,30 @@ const MedicalInfo = () => {
         <Tabs
           value={tabValue}
           onChange={(e, newValue) => setTabValue(newValue)}
-          sx={{ mb: 3 }}
+          sx={{ 
+            mb: 3,
+            borderBottom: 1,
+            borderColor: 'divider'
+          }}
         >
-          <Tab label="Medical Details" />
-          <Tab label="QR Code" />
+          <Tab 
+            label="Medical Details" 
+            icon={<LocalHospitalIcon />} 
+            iconPosition="start"
+          />
+          <Tab 
+            label="QR Code" 
+            icon={<QrCodeIcon />} 
+            iconPosition="start"
+          />
         </Tabs>
 
-        <Box sx={{ flex: 1, overflow: 'auto' }}>
+        <Box sx={{ 
+          flex: 1, 
+          overflow: 'auto',
+          px: { xs: 1, sm: 2 },
+          py: 2
+        }}>
           {tabValue === 0 && (
             isEditing ? renderMedicalForm() : renderMedicalDetails()
           )}

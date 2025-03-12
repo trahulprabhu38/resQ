@@ -1,262 +1,206 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
+  Box,
   Paper,
   Typography,
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Button,
-  Divider,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Alert,
   CircularProgress,
+  Alert,
+  Tabs,
+  Tab,
+  Button,
+  Chip,
+  Divider,
+  IconButton
 } from '@mui/material';
+import {
+  Edit as EditIcon,
+  QrCode as QrCodeIcon,
+  ArrowBack as ArrowBackIcon,
+  Share as ShareIcon
+} from '@mui/icons-material';
+import QRCode from 'qrcode.react';
 import PageWrapper from '../components/PageWrapper';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import BloodtypeIcon from '@mui/icons-material/Bloodtype';
-import MedicationIcon from '@mui/icons-material/Medication';
-import WarningIcon from '@mui/icons-material/Warning';
-import ContactPhoneIcon from '@mui/icons-material/ContactPhone';
-import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
-import { useAuth } from '../contexts/AuthContext';
-import CryptoJS from 'crypto-js';
 
 const PatientInfo = () => {
-  const { patientId } = useParams();
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { token, user } = useAuth();
-  const [patientInfo, setPatientInfo] = useState(null);
+  const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [accessDenied, setAccessDenied] = useState(false);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
+  const [qrValue, setQrValue] = useState('');
 
   useEffect(() => {
-    const decryptData = (encryptedData) => {
-      try {
-        // Use the same key as server
-        const ENCRYPTION_KEY = 'your-secret-key-32-chars-long!!!!!';
-        
-        // Parse the base64 encoded string
-        const encryptedObj = JSON.parse(Buffer.from(encryptedData, 'base64').toString());
-        
-        // Convert base64 strings to bytes
-        const iv = Buffer.from(encryptedObj.iv, 'base64');
-        const encrypted = Buffer.from(encryptedObj.data, 'base64');
-        const authTag = Buffer.from(encryptedObj.auth, 'base64');
-        
-        // Create decipher
-        const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY), iv);
-        decipher.setAuthTag(authTag);
-        
-        // Decrypt the data
-        let decrypted = decipher.update(encrypted, 'base64', 'utf8');
-        decrypted += decipher.final('utf8');
-        
-        return JSON.parse(decrypted);
-      } catch (error) {
-        console.error('Decryption error:', error);
-        throw new Error('Failed to decrypt medical data');
-      }
-    };
+    fetchPatientData();
+  }, [id]);
 
-    const fetchPatientInfo = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setAccessDenied(false);
-
-        // Check if user is authenticated
-        if (!user) {
-          console.log('User not authenticated, redirecting to login');
-          navigate('/login', { state: { from: `/patient/${token}` } });
-          return;
+  const fetchPatientData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/medical/patient/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`
         }
-
-        // Check if user has required role
-        const allowedRoles = ['admin', 'doctor', 'nurse'];
-        if (!allowedRoles.includes(user.role)) {
-          console.log('Access denied: User role not authorized');
-          setAccessDenied(true);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch medical info using the token
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/medical/access/${token}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
-          }
-        });
-
-        if (response.data.success) {
-          console.log('Medical info retrieved successfully');
-          setPatientInfo(response.data.data);
-        } else {
-          throw new Error(response.data.message || 'Failed to fetch patient information');
-        }
-      } catch (err) {
-        console.error('Error fetching patient info:', err);
-        setError(err.response?.data?.message || err.message || 'An error occurred while fetching patient information');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPatientInfo();
-  }, [token, user, navigate]);
-
-  const renderMedicalDetails = () => {
-    if (!patientInfo) return null;
-
-    return (
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Patient Details
-              </Typography>
-              <Typography>
-                Name: {patientInfo.patient?.name || 'Not specified'}
-              </Typography>
-              <Typography>
-                Blood Type: {patientInfo.bloodType || 'Not specified'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Allergies
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {patientInfo.allergies && patientInfo.allergies.length > 0 ? (
-                  patientInfo.allergies.map((allergy, index) => (
-                    <Chip key={index} label={allergy} color="error" />
-                  ))
-                ) : (
-                  <Typography>No allergies specified</Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Medications
-              </Typography>
-              {patientInfo.medications && patientInfo.medications.length > 0 ? (
-                patientInfo.medications.map((med, index) => (
-                  <Box key={index} mb={1}>
-                    <Typography variant="subtitle1">{med.name}</Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Dosage: {med.dosage || 'Not specified'}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Frequency: {med.frequency || 'Not specified'}
-                    </Typography>
-                  </Box>
-                ))
-              ) : (
-                <Typography>No medications specified</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Medical Conditions
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {patientInfo.conditions && patientInfo.conditions.length > 0 ? (
-                  patientInfo.conditions.map((condition, index) => (
-                    <Chip key={index} label={condition} color="primary" />
-                  ))
-                ) : (
-                  <Typography>No conditions specified</Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Emergency Contact
-              </Typography>
-              {patientInfo.emergencyContact ? (
-                <>
-                  <Typography>
-                    Name: {patientInfo.emergencyContact.name || 'Not specified'}
-                  </Typography>
-                  <Typography>
-                    Relationship: {patientInfo.emergencyContact.relationship || 'Not specified'}
-                  </Typography>
-                  <Typography>
-                    Phone: {patientInfo.emergencyContact.phone || 'Not specified'}
-                  </Typography>
-                </>
-              ) : (
-                <Typography>No emergency contact specified</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Typography variant="caption" color="textSecondary">
-            Last Updated: {new Date(patientInfo.lastUpdated).toLocaleString()}
-          </Typography>
-        </Grid>
-      </Grid>
-    );
+      });
+      setPatient(response.data);
+      setQrValue(JSON.stringify({
+        id: response.data._id,
+        name: response.data.name,
+        bloodType: response.data.bloodType,
+        allergies: response.data.allergies
+      }));
+    } catch (err) {
+      console.error('Error fetching patient data:', err);
+      setError(err.response?.data?.message || 'Error fetching patient information');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleShare = async () => {
+    try {
+      await navigator.share({
+        title: `Medical Info - ${patient.name}`,
+        text: `Medical information for ${patient.name}`,
+        url: window.location.href
+      });
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
+
+  const renderPatientDetails = () => (
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Personal Information</Typography>
+        <Typography><strong>Name:</strong> {patient.name}</Typography>
+        <Typography><strong>Blood Type:</strong> {patient.bloodType}</Typography>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Medical Information</Typography>
+        
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Allergies</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {patient.allergies?.length > 0 ? (
+              patient.allergies.map((allergy, index) => (
+                <Chip key={index} label={allergy} color="primary" variant="outlined" />
+              ))
+            ) : (
+              <Typography color="text.secondary">No allergies specified</Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Medications</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {patient.medications?.length > 0 ? (
+              patient.medications.map((med, index) => (
+                <Chip
+                  key={index}
+                  label={`${med.name} - ${med.dosage} - ${med.frequency}`}
+                  color="primary"
+                  variant="outlined"
+                />
+              ))
+            ) : (
+              <Typography color="text.secondary">No medications specified</Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Medical Conditions</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {patient.conditions?.length > 0 ? (
+              patient.conditions.map((condition, index) => (
+                <Chip key={index} label={condition} color="primary" variant="outlined" />
+              ))
+            ) : (
+              <Typography color="text.secondary">No conditions specified</Typography>
+            )}
+          </Box>
+        </Box>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Emergency Contact</Typography>
+        {patient.emergencyContact ? (
+          <>
+            <Typography><strong>Name:</strong> {patient.emergencyContact.name}</Typography>
+            <Typography><strong>Relationship:</strong> {patient.emergencyContact.relationship}</Typography>
+            <Typography><strong>Phone:</strong> {patient.emergencyContact.phone}</Typography>
+          </>
+        ) : (
+          <Typography color="text.secondary">No emergency contact specified</Typography>
+        )}
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Box>
+        <Typography variant="h6" gutterBottom>Insurance Information</Typography>
+        {patient.insuranceInfo ? (
+          <>
+            <Typography><strong>Provider:</strong> {patient.insuranceInfo.provider}</Typography>
+            <Typography><strong>Policy Number:</strong> {patient.insuranceInfo.policyNumber}</Typography>
+            <Typography><strong>Group Number:</strong> {patient.insuranceInfo.groupNumber}</Typography>
+          </>
+        ) : (
+          <Typography color="text.secondary">No insurance information specified</Typography>
+        )}
+      </Box>
+    </Box>
+  );
+
+  const renderQRCode = () => (
+    <Box sx={{ 
+      p: { xs: 2, sm: 3 },
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 3
+    }}>
+      <Typography variant="h6" align="center" gutterBottom>
+        Scan this QR code to access emergency medical information
+      </Typography>
+      
+      <Paper 
+        elevation={3}
+        sx={{ 
+          p: 3,
+          backgroundColor: 'white',
+          borderRadius: 2
+        }}
+      >
+        <QRCode 
+          value={qrValue}
+          size={256}
+          level="H"
+          includeMargin={true}
+        />
+      </Paper>
+
+      <Typography variant="body2" color="text.secondary" align="center">
+        This QR code contains basic medical information that can be crucial in emergencies
+      </Typography>
+    </Box>
+  );
 
   if (loading) {
     return (
       <PageWrapper>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <CircularProgress />
         </Box>
-      </PageWrapper>
-    );
-  }
-
-  if (accessDenied) {
-    return (
-      <PageWrapper>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            Access Denied - You do not have the required role to view this medical information.
-            Only doctors, nurses, and administrators can access patient records.
-          </Alert>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            variant="contained"
-            onClick={() => navigate('/dashboard')}
-          >
-            Return to Dashboard
-          </Button>
-        </Paper>
       </PageWrapper>
     );
   }
@@ -264,40 +208,87 @@ const PatientInfo = () => {
   if (error) {
     return (
       <PageWrapper>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            variant="contained"
-            onClick={() => navigate('/dashboard')}
-          >
-            Return to Dashboard
-          </Button>
-        </Paper>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to Dashboard
+        </Button>
       </PageWrapper>
     );
   }
 
   return (
     <PageWrapper>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            variant="outlined"
-            onClick={() => navigate('/dashboard')}
-          >
-            Back
-          </Button>
-          <Typography variant="h4" component="h1" sx={{ color: 'primary.main' }}>
-            Patient Medical Information
-          </Typography>
+      <Paper 
+        elevation={3}
+        sx={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ 
+          p: { xs: 2, sm: 3 },
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: 1,
+          borderColor: 'divider'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton onClick={() => navigate('/dashboard')} size="small">
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h5" component="h1">
+              Patient Details
+            </Typography>
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton
+              onClick={handleShare}
+              color="primary"
+              size="small"
+            >
+              <ShareIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => navigate(`/patient/${id}/edit`)}
+              color="primary"
+              size="small"
+            >
+              <EditIcon />
+            </IconButton>
+          </Box>
         </Box>
 
-        {renderMedicalDetails()}
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Tab 
+            icon={<EditIcon />}
+            iconPosition="start"
+            label="Details" 
+          />
+          <Tab 
+            icon={<QrCodeIcon />}
+            iconPosition="start"
+            label="QR Code" 
+          />
+        </Tabs>
+
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          {activeTab === 0 ? renderPatientDetails() : renderQRCode()}
+        </Box>
       </Paper>
     </PageWrapper>
   );

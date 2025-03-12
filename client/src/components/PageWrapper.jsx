@@ -1,19 +1,25 @@
 import React from 'react';
-import { Box, Container } from '@mui/material';
+import { Container, Box } from '@mui/material';
 
-const PageWrapper = ({ children, maxWidth = 'md' }) => {
+const PageWrapper = ({ children, maxWidth = "lg" }) => {
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        width: '100vw',
-        bgcolor: 'background.default',
-        py: 4,
-        overflow: 'auto'
+        paddingTop: '100px', // Space for navbar
+        paddingBottom: '2rem',
+        backgroundColor: 'background.default'
       }}
     >
-      <Container maxWidth={maxWidth} sx={{ height: '100%' }}>
-        {children}
+      <Container maxWidth={maxWidth}>
+        <Box sx={{ 
+          height: '100%',
+          minHeight: 'calc(100vh - 180px)', // Account for padding and margins
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {children}
+        </Box>
       </Container>
     </Box>
   );

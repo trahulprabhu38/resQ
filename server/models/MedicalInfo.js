@@ -10,11 +10,15 @@ const medicalInfoSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
     bloodType: {
         type: String,
-        required: false,
-        enum: ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-        default: ''
+        required: true,
+        enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
     },
     allergies: [{
         type: String,
@@ -33,6 +37,11 @@ const medicalInfoSchema = new mongoose.Schema({
         name: { type: String, trim: true },
         relationship: { type: String, trim: true },
         phone: { type: String, trim: true }
+    },
+    insuranceInfo: {
+        provider: { type: String, trim: true },
+        policyNumber: { type: String, trim: true },
+        groupNumber: { type: String, trim: true }
     },
     qrCode: String,
     accessLog: [{
@@ -92,11 +101,18 @@ function encryptData(data) {
     }
 }
 
-// Generate QR code before saving - simplified to only contain patient ID
+// Generate QR code before saving
 medicalInfoSchema.pre('save', async function(next) {
     try {
-        // Simply use the patient ID as the QR code content
-        this.qrCode = await QRCode.toDataURL(this.patient.toString(), {
+        // Generate QR code with essential medical info
+        const qrData = {
+            id: this._id,
+            name: this.name,
+            bloodType: this.bloodType,
+            allergies: this.allergies
+        };
+        
+        this.qrCode = await QRCode.toDataURL(JSON.stringify(qrData), {
             errorCorrectionLevel: 'H',
             margin: 1,
             width: 400,
@@ -106,7 +122,7 @@ medicalInfoSchema.pre('save', async function(next) {
             }
         });
         
-        this.lastUpdated = Date.now();
+        this.lastUpdated = new Date();
         next();
     } catch (error) {
         console.error('Error generating QR code:', error);
@@ -126,8 +142,12 @@ medicalInfoSchema.methods.logAccess = async function(staffId, action) {
 
 // Method to check if user has access
 medicalInfoSchema.methods.hasAccess = function(user) {
-    const allowedRoles = ['admin', 'doctor', 'nurse'];
-    return user && allowedRoles.includes(user.role);
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.role === 'doctor' || user.role === 'nurse') {
+        return true; // Add additional checks if needed
+    }
+    return false;
 };
 
 // Add a method to transform the document for JSON responses
@@ -139,12 +159,7 @@ medicalInfoSchema.methods.toJSON = function() {
 };
 
 // Create the model
-let MedicalInfo;
-try {
-    MedicalInfo = mongoose.model('MedicalInfo');
-} catch (error) {
-    MedicalInfo = mongoose.model('MedicalInfo', medicalInfoSchema);
-}
+const MedicalInfo = mongoose.model('MedicalInfo', medicalInfoSchema);
 
 // Create indexes
 MedicalInfo.init().then(() => {
