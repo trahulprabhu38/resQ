@@ -88,7 +88,10 @@ const QRScanner = () => {
           handleScan(decodedText);
         },
         (errorMessage) => {
-          console.warn(errorMessage);
+          // Only log critical errors, ignore common scan errors
+          if (!errorMessage.includes('No MultiFormat Readers were able to detect the code')) {
+            console.error('QR Scanner error:', errorMessage);
+          }
         }
       );
 
@@ -101,31 +104,19 @@ const QRScanner = () => {
   const handleScan = async (data) => {
     setScanning(false);
     try {
-      console.log('Raw QR code data:', data);
-      
       // Check authentication
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Please log in to scan QR codes');
       }
-      
-      console.log('Token found:', token.substring(0, 20) + '...');
 
       // Parse the QR code data
       const qrData = JSON.parse(data);
-      console.log('Parsed QR data:', qrData);
 
       // Validate QR code format
       if (!qrData.type || qrData.type !== 'patient_id' || !qrData.id) {
         throw new Error('Invalid QR code format');
       }
-
-      // Log the request details
-      console.log('Making request to:', `${import.meta.env.VITE_API_URL}/medical/scan`);
-      console.log('Request payload:', { patientId: qrData.id });
-      console.log('Request headers:', {
-        Authorization: `Bearer ${token.substring(0, 20)}...`,
-      });
 
       // Make API request with the patient ID
       const response = await axios.post(
@@ -139,8 +130,6 @@ const QRScanner = () => {
         }
       );
 
-      console.log('API response:', response.data);
-
       if (!response.data.success || !response.data.data) {
         throw new Error('Invalid response from server');
       }
@@ -148,13 +137,6 @@ const QRScanner = () => {
       setMedicalInfo(response.data.data);
       setError('');
     } catch (err) {
-      console.error('Scan error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        headers: err.response?.headers
-      });
-      
       // Handle different types of errors
       if (err.response) {
         // Server responded with an error
@@ -164,9 +146,7 @@ const QRScanner = () => {
             navigate('/login');
             break;
           case 403:
-            const errorMessage = err.response.data?.message || 'You are not authorized to scan QR codes. Please contact your administrator.';
-            console.log('Authorization error details:', err.response.data);
-            setError(errorMessage);
+            setError(err.response.data?.message || 'You are not authorized to scan QR codes.');
             break;
           case 404:
             setError('Patient information not found');
@@ -175,10 +155,8 @@ const QRScanner = () => {
             setError(err.response.data?.message || 'Error processing QR code');
         }
       } else if (err.request) {
-        // Request was made but no response received
         setError('Unable to connect to server. Please check your internet connection.');
       } else {
-        // Error in request setup
         setError(err.message || 'Error processing QR code');
       }
       
