@@ -250,28 +250,44 @@ const MedicalInfo = () => {
 
       if (response.data.success) {
         const updatedInfo = response.data.data;
-        setMedicalInfo(prevState => ({
-          ...prevState,
-          ...updatedInfo,
-          emergencyContact: updatedInfo.emergencyContact || {},
-          insuranceInfo: updatedInfo.insuranceInfo || {}
-        }));
+        console.log('Received updated info:', updatedInfo);
+        
+        setMedicalInfo(prevState => {
+          const newState = {
+            ...prevState,
+            bloodType: updatedInfo.bloodType,
+            allergies: updatedInfo.allergies || [],
+            medications: updatedInfo.medications || [],
+            conditions: updatedInfo.conditions || [],
+            emergencyContact: updatedInfo.emergencyContact || {},
+            insuranceInfo: updatedInfo.insuranceInfo || {},
+            lastUpdated: updatedInfo.lastUpdated
+          };
+          console.log('Updating medical info state:', newState);
+          return newState;
+        });
+
         if (updatedInfo.qrCode) {
-          console.log('Received QR code from server');
+          console.log('Setting new QR code');
           setQrCode(updatedInfo.qrCode);
         } else {
-          console.error('No QR code in server response');
-          setError('Failed to generate QR code');
+          console.warn('No QR code in response');
         }
-        setSuccess('Medical information updated successfully');
+
+        setSuccess(response.data.message || 'Medical information updated successfully');
         setIsEditing(false);
         setTabValue(0);
       } else {
+        console.error('Server returned success: false');
         throw new Error(response.data.message || 'Failed to update medical information');
       }
     } catch (err) {
       console.error('Update error:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Error updating medical information';
+      const errorMessage = err.response?.data?.message || 
+                         err.response?.data?.error ||
+                         err.message || 
+                         'Error updating medical information';
+      console.error('Setting error message:', errorMessage);
       setError(errorMessage);
       if (err.response?.status === 401) {
         navigate('/login');
@@ -685,7 +701,7 @@ const MedicalInfo = () => {
             }}
             className="QRCode">
               <QRCodeSVG
-                value={qrCode}
+                value={user?._id || ''}
                 size={300}
                 level="H"
                 includeMargin={true}

@@ -47,10 +47,10 @@ const checkStaffAccess = async (req, res, next) => {
     }
 };
 
-// Handle QR code scan - receives patient ID from QR code data
+// Handle QR code scan - receives patient ID directly
 router.post('/scan', auth, checkStaffAccess, async (req, res) => {
     try {
-        const { patientId } = req.body;
+        const patientId = req.body.patientId || req.body.data;
 
         if (!patientId) {
             return res.status(400).json({
@@ -61,7 +61,7 @@ router.post('/scan', auth, checkStaffAccess, async (req, res) => {
 
         console.log('Processing scan request for patient:', patientId);
 
-        // Get medical info directly using patient ID
+        // Get medical info using patient ID
         const medicalInfo = await MedicalInfo.findOne({ patient: patientId })
             .populate('patient', 'name email')
             .lean();
@@ -85,7 +85,7 @@ router.post('/scan', auth, checkStaffAccess, async (req, res) => {
             }
         });
 
-        console.log('Medical info found and access logged for patient:', patientId);
+        console.log('Medical info found and access logged');
 
         // Format and return the medical info
         const response = {
@@ -101,12 +101,10 @@ router.post('/scan', auth, checkStaffAccess, async (req, res) => {
                 allergies: medicalInfo.allergies || [],
                 medications: medicalInfo.medications || [],
                 conditions: medicalInfo.conditions || [],
-                emergencyContact: {
-                    name: medicalInfo.emergencyContact?.name || '',
-                    relationship: medicalInfo.emergencyContact?.relationship || '',
-                    phone: medicalInfo.emergencyContact?.phone || ''
-                },
-                lastUpdated: medicalInfo.lastUpdated
+                emergencyContact: medicalInfo.emergencyContact || {},
+                insuranceInfo: medicalInfo.insuranceInfo || {},
+                lastUpdated: medicalInfo.lastUpdated,
+                __v: 4
             }
         };
 
@@ -161,7 +159,10 @@ router.get('/patient/me', auth, async (req, res) => {
             medications: medicalInfo.medications,
             conditions: medicalInfo.conditions,
             emergencyContact: medicalInfo.emergencyContact,
-            qrCode: medicalInfo.qrCode,
+            qrCode: JSON.stringify({
+                __v: 4,
+                patientId: medicalInfo.patient._id.toString()
+            }),
             lastUpdated: medicalInfo.lastUpdated,
             patient: medicalInfo.patient._id,
             patientName: medicalInfo.patient.name,
@@ -241,16 +242,30 @@ router.get('/patient/:patientId', auth, async (req, res) => {
 // Create or update medical info
 router.post('/', auth, async (req, res) => {
     try {
+        console.log('Received medical info update:', req.body);
+        
         const {
+            name,
             bloodType,
             allergies,
             medications,
             conditions,
-            emergencyContact
+            emergencyContact,
+            insuranceInfo
         } = req.body;
 
         if (!bloodType) {
-            return res.status(400).json({ message: 'Blood type is required' });
+            return res.status(400).json({
+                success: false,
+                message: 'Blood type is required'
+            });
+        }
+
+        if (!name) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name is required'
+            });
         }
 
         // Clean and validate arrays
@@ -262,6 +277,7 @@ router.post('/', auth, async (req, res) => {
         let medicalInfo = await MedicalInfo.findOne({ patient: req.user._id });
 
         const medicalData = {
+            name,
             bloodType,
             allergies: cleanedAllergies,
             medications: cleanedMedications,
@@ -270,13 +286,22 @@ router.post('/', auth, async (req, res) => {
                 name: emergencyContact?.name?.trim() || '',
                 relationship: emergencyContact?.relationship?.trim() || '',
                 phone: emergencyContact?.phone?.trim() || ''
-            }
+            },
+            insuranceInfo: insuranceInfo || {
+                provider: '',
+                policyNumber: '',
+                groupNumber: ''
+            },
+            lastUpdated: new Date(),
+            __v: 4
         };
 
         if (medicalInfo) {
+            console.log('Updating existing medical info');
             Object.assign(medicalInfo, medicalData);
             medicalInfo = await medicalInfo.save();
         } else {
+            console.log('Creating new medical info');
             const newMedicalInfo = new MedicalInfo({
                 patient: req.user._id,
                 ...medicalData
@@ -291,15 +316,35 @@ router.post('/', auth, async (req, res) => {
             throw new Error('Failed to fetch updated medical info');
         }
 
+        console.log('Medical info saved successfully');
+        
         res.json({
-            ...updatedMedicalInfo.toJSON(),
-            patientName: updatedMedicalInfo.patient?.name || '',
-            patientEmail: updatedMedicalInfo.patient?.email || ''
+            success: true,
+            message: 'Medical information updated successfully',
+            data: {
+                _id: updatedMedicalInfo._id,
+                name: updatedMedicalInfo.name,
+                bloodType: updatedMedicalInfo.bloodType,
+                allergies: updatedMedicalInfo.allergies,
+                medications: updatedMedicalInfo.medications,
+                conditions: updatedMedicalInfo.conditions,
+                emergencyContact: updatedMedicalInfo.emergencyContact,
+                insuranceInfo: updatedMedicalInfo.insuranceInfo,
+                lastUpdated: updatedMedicalInfo.lastUpdated,
+                __v: 4,
+                patient: {
+                    id: updatedMedicalInfo.patient._id,
+                    name: updatedMedicalInfo.patient.name,
+                    email: updatedMedicalInfo.patient.email
+                }
+            }
         });
     } catch (error) {
         console.error('Error saving medical info:', error);
         res.status(500).json({ 
-            message: 'Error saving medical information'
+            success: false,
+            message: 'Error saving medical information',
+            error: error.message
         });
     }
 });
