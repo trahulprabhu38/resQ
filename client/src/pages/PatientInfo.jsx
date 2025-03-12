@@ -90,7 +90,7 @@ const PatientInfo = () => {
         }
 
         // Fetch medical info using the token
-        const response = await axios.get(`/api/medical/access/${token}`, {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/medical/access/${token}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }

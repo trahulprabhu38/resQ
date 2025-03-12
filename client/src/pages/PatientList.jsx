@@ -65,7 +65,7 @@ const PatientList = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axios.get(`http://localhost:5001/api/medical/patient/${patientId}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/medical/patient/${patientId}`);
       setPatient(response.data);
       setError('');
     } catch (err) {
@@ -99,7 +99,7 @@ const PatientList = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5001/api/medical/patient/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/medical/patient/${id}`);
       fetchPatientData();
     } catch (err) {
       console.error('Error deleting patient:', err);
@@ -130,7 +130,7 @@ const PatientList = () => {
 
   const handleSubmit = async () => {
     try {
-      const response = await axios.put(`http://localhost:5001/api/medical/patient/${patientId}`, formData);
+      const response = await axios.put(`${import.meta.env.VITE_API_URL}/medical/patient/${patientId}`, formData);
       setPatient(response.data);
       handleCloseDialog();
     } catch (err) {
