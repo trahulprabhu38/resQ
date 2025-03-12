@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
+  AppBar,
+  Toolbar,
+  Typography,
   Button,
   Box,
+  Container,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,72 +20,76 @@ const Navbar = () => {
   };
 
   return (
-    <header className="header">
-      <div className="header-content">
-        <RouterLink to="/" className="logo">
-          ResQ
-        </RouterLink>
-        
-        <nav className="nav-links">
-          <RouterLink to="/how-it-works" className="nav-link">
-            How It Works
-          </RouterLink>
-          <RouterLink to="/features" className="nav-link">
-            Features
-          </RouterLink>
-          <RouterLink to="/for-medical" className="nav-link">
-            For Medical Staff
-          </RouterLink>
-          <RouterLink to="/about" className="nav-link">
-            About Us
-          </RouterLink>
-          {user ? (
-            <>
-              <Button
-                component={RouterLink}
-                to="/dashboard"
-                className="nav-link"
-              >
-                My Profile
-              </Button>
-              {user.role === 'patient' && (
+    <AppBar position="static">
+      <Container maxWidth="lg">
+        <Toolbar>
+          <Typography
+            variant="h6"
+            component={RouterLink}
+            to="/"
+            sx={{
+              flexGrow: 1,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            ResQ
+          </Typography>
+          <Box>
+            {user ? (
+              <>
                 <Button
+                  color="inherit"
                   component={RouterLink}
-                  to="/medical-info"
-                  className="nav-link"
+                  to="/dashboard"
                 >
-                  Medical Info
+                  Dashboard
                 </Button>
-              )}
-              {user.role === 'medical_staff' && (
+                {user.role === 'patient' && (
+                  <Button
+                    color="inherit"
+                    component={RouterLink}
+                    to="/medical-info"
+                  >
+                    Medical Info
+                  </Button>
+                )}
+                {user.role === 'medical_staff' && (
+                  <Button
+                    color="inherit"
+                    component={RouterLink}
+                    to="/scan"
+                  >
+                    Scan QR
+                  </Button>
+                )}
+                <Button color="inherit" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
                 <Button
+                  color="inherit"
                   component={RouterLink}
-                  to="/scan"
-                  className="nav-link"
+                  to="/login"
                 >
-                  Scan QR
+                  Login
                 </Button>
-              )}
-              <Button 
-                onClick={handleLogout}
-                className="btn-black"
-              >
-                Logout
-              </Button>
-            </>
-          ) : (
-            <Button
-              component={RouterLink}
-              to="/register"
-              className="btn-black"
-            >
-              Login / Get QR Code
-            </Button>
-          )}
-        </nav>
-      </div>
-    </header>
+                <Button
+                  color="inherit"
+                  component={RouterLink}
+                  to="/register"
+                >
+                  Register
+                </Button>
+              </>
+            )}
+          </Box>
+        </Toolbar>
+      </Container>
+    </AppBar>
   );
 };
 
-export default Navbar;
+export default Navbar; 
