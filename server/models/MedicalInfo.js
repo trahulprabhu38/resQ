@@ -92,20 +92,11 @@ function encryptData(data) {
     }
 }
 
-// Generate QR code before saving
+// Generate QR code before saving - simplified to only contain patient ID
 medicalInfoSchema.pre('save', async function(next) {
     try {
-        console.log('Generating QR code for patient:', this.patient);
-        
-        // Create QR data with just the patient ID
-        const qrData = {
-            type: 'patient_id',
-            id: this.patient.toString(),
-            timestamp: Date.now()
-        };
-        
-        // Generate QR code
-        this.qrCode = await QRCode.toDataURL(JSON.stringify(qrData), {
+        // Simply use the patient ID as the QR code content
+        this.qrCode = await QRCode.toDataURL(this.patient.toString(), {
             errorCorrectionLevel: 'H',
             margin: 1,
             width: 400,
@@ -115,17 +106,10 @@ medicalInfoSchema.pre('save', async function(next) {
             }
         });
         
-        console.log('QR code generated successfully');
         this.lastUpdated = Date.now();
         next();
     } catch (error) {
-        console.error('Error generating QR code:', {
-            error: error.message,
-            stack: error.stack,
-            data: {
-                patientId: this.patient
-            }
-        });
+        console.error('Error generating QR code:', error);
         next(error);
     }
 });

@@ -8,35 +8,65 @@ const jwt = require('jsonwebtoken');
 // Middleware to check if user is approved medical staff
 const checkStaffAccess = async (req, res, next) => {
     try {
+        console.log('Checking staff access for user:', req.user._id);
+        console.log('User details:', {
+            id: req.user._id,
+            role: req.user.role,
+            email: req.user.email
+        });
+
         const isApproved = await StaffAccess.isApproved(req.user._id);
+        console.log('Staff approval status:', isApproved);
+
         if (!isApproved) {
+            console.log('Access denied for user:', req.user._id);
             return res.status(403).json({
                 success: false,
-                message: 'Access denied. Only approved medical staff can access patient records.'
+                message: 'Access denied. Only approved medical staff can access patient records.',
+                details: {
+                    userId: req.user._id,
+                    role: req.user.role
+                }
             });
         }
+
+        console.log('Access granted for user:', req.user._id);
         next();
     } catch (error) {
-        console.error('Staff access check error:', error);
+        console.error('Staff access check error:', {
+            error: error.message,
+            stack: error.stack,
+            userId: req.user?._id
+        });
         res.status(500).json({
             success: false,
-            message: 'Error checking staff access'
+            message: 'Error checking staff access',
+            details: error.message
         });
     }
 };
 
-// Scan QR code and get patient info
-router.get('/scan/:patientId', auth, checkStaffAccess, async (req, res) => {
+// Handle QR code scan - receives patient ID from QR code data
+router.post('/scan', auth, checkStaffAccess, async (req, res) => {
     try {
-        console.log('\n=== Processing QR Code Scan ===');
-        console.log('Patient ID:', req.params.patientId);
-        console.log('Staff ID:', req.user._id);
+        const { patientId } = req.body;
 
-        // Get medical info
-        const medicalInfo = await MedicalInfo.findOne({ patient: req.params.patientId })
-            .populate('patient', 'name email');
+        if (!patientId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Patient ID is required'
+            });
+        }
+
+        console.log('Processing scan request for patient:', patientId);
+
+        // Get medical info directly using patient ID
+        const medicalInfo = await MedicalInfo.findOne({ patient: patientId })
+            .populate('patient', 'name email')
+            .lean();
 
         if (!medicalInfo) {
+            console.log('No medical info found for patient:', patientId);
             return res.status(404).json({
                 success: false,
                 message: 'Medical information not found'
@@ -44,10 +74,20 @@ router.get('/scan/:patientId', auth, checkStaffAccess, async (req, res) => {
         }
 
         // Log the access
-        await medicalInfo.logAccess(req.user._id, 'scan');
+        await MedicalInfo.findByIdAndUpdate(medicalInfo._id, {
+            $push: {
+                accessLog: {
+                    accessedBy: req.user._id,
+                    accessType: 'scan',
+                    timestamp: new Date()
+                }
+            }
+        });
 
-        // Return the medical info
-        res.json({
+        console.log('Medical info found and access logged for patient:', patientId);
+
+        // Format and return the medical info
+        const response = {
             success: true,
             data: {
                 _id: medicalInfo._id,
@@ -56,20 +96,28 @@ router.get('/scan/:patientId', auth, checkStaffAccess, async (req, res) => {
                     name: medicalInfo.patient.name,
                     email: medicalInfo.patient.email
                 },
-                bloodType: medicalInfo.bloodType,
-                allergies: medicalInfo.allergies,
-                medications: medicalInfo.medications,
-                conditions: medicalInfo.conditions,
-                emergencyContact: medicalInfo.emergencyContact,
+                bloodType: medicalInfo.bloodType || '',
+                allergies: medicalInfo.allergies || [],
+                medications: medicalInfo.medications || [],
+                conditions: medicalInfo.conditions || [],
+                emergencyContact: {
+                    name: medicalInfo.emergencyContact?.name || '',
+                    relationship: medicalInfo.emergencyContact?.relationship || '',
+                    phone: medicalInfo.emergencyContact?.phone || ''
+                },
                 lastUpdated: medicalInfo.lastUpdated
             }
-        });
+        };
+
+        console.log('Sending formatted medical info response');
+        res.json(response);
 
     } catch (error) {
         console.error('Error processing QR scan:', error);
         res.status(500).json({
             success: false,
-            message: 'Error processing QR code scan'
+            message: 'Error processing QR code scan',
+            error: error.message
         });
     }
 });
@@ -77,8 +125,6 @@ router.get('/scan/:patientId', auth, checkStaffAccess, async (req, res) => {
 // Get current user's medical info
 router.get('/patient/me', auth, async (req, res) => {
     try {
-        console.log('\n=== Fetching Current User Medical Info ===');
-        
         if (!req.user?._id) {
             return res.status(400).json({ 
                 message: 'User ID is required'
@@ -194,8 +240,6 @@ router.get('/patient/:patientId', auth, async (req, res) => {
 // Create or update medical info
 router.post('/', auth, async (req, res) => {
     try {
-        console.log('=== Medical Info Save Request ===');
-        
         const {
             bloodType,
             allergies,
@@ -204,7 +248,6 @@ router.post('/', auth, async (req, res) => {
             emergencyContact
         } = req.body;
 
-        // Validate required fields
         if (!bloodType) {
             return res.status(400).json({ message: 'Blood type is required' });
         }
@@ -338,6 +381,69 @@ router.get('/access/:token', auth, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error accessing medical information'
+        });
+    }
+});
+
+// Check staff access status
+router.get('/staff-status', auth, async (req, res) => {
+    try {
+        console.log('Checking staff status for user:', req.user._id);
+        console.log('Full user object:', req.user);
+        
+        let staffAccess = await StaffAccess.findOne({ staff: req.user._id })
+            .populate('staff', 'name email role')
+            .populate('approvedBy', 'name email');
+
+        // Auto-create staff access for verified users
+        if (!staffAccess && req.user.isVerified) {
+            console.log('Creating staff access for verified user:', req.user._id);
+            
+            const newStaffAccess = new StaffAccess({
+                staff: req.user._id,
+                role: 'doctor',
+                isApproved: true,
+                status: 'approved',
+                approvalDate: new Date(),
+                department: 'General',
+                specialization: 'General Medicine'
+            });
+
+            try {
+                staffAccess = await newStaffAccess.save();
+                console.log('Created new staff access:', staffAccess);
+            } catch (saveError) {
+                console.error('Failed to create staff access:', saveError);
+            }
+        }
+
+        if (!staffAccess) {
+            return res.json({
+                success: false,
+                message: 'No staff access record found',
+                details: {
+                    userId: req.user._id,
+                    userEmail: req.user.email,
+                    isVerified: req.user.isVerified
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                isApproved: staffAccess.isApproved,
+                status: staffAccess.status,
+                role: staffAccess.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Staff status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking staff status',
+            error: error.message
         });
     }
 });

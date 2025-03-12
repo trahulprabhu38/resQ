@@ -55,8 +55,26 @@ staffAccessSchema.methods.reject = async function(adminId) {
 
 // Static method to check if a staff member is approved
 staffAccessSchema.statics.isApproved = async function(staffId) {
-    const access = await this.findOne({ staff: staffId });
-    return access?.isApproved || false;
+    console.log('Checking approval status for staff ID:', staffId);
+    
+    try {
+        // Convert string ID to ObjectId if needed
+        const searchId = typeof staffId === 'string' ? mongoose.Types.ObjectId(staffId) : staffId;
+        
+        // Find the staff access record
+        const access = await this.findOne({ staff: searchId });
+        console.log('Found staff access record:', access);
+        
+        if (!access) {
+            console.log('No staff access record found for ID:', staffId);
+            return false;
+        }
+        
+        return access.isApproved;
+    } catch (error) {
+        console.error('Error in isApproved check:', error);
+        return false;
+    }
 };
 
 const StaffAccess = mongoose.model('StaffAccess', staffAccessSchema);

@@ -9,17 +9,68 @@ import {
   CardContent,
   Divider,
   Button,
+  CircularProgress,
 } from '@mui/material';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const QRScanner = () => {
   const [error, setError] = useState('');
   const [medicalInfo, setMedicalInfo] = useState(null);
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [staffStatus, setStaffStatus] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (scanning) {
+    checkStaffStatus();
+  }, []);
+
+  const checkStaffStatus = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please log in to scan QR codes');
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/medical/staff-status`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log('Staff status response:', response.data);
+
+      if (!response.data.success) {
+        setError('You need to be registered as medical staff to use this feature.');
+        setLoading(false);
+        return;
+      }
+
+      if (!response.data.data.isApproved) {
+        setError('Your staff access is pending approval. Please contact your administrator.');
+        setLoading(false);
+        return;
+      }
+
+      setStaffStatus(response.data.data);
+      setScanning(true);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error checking staff status:', err);
+      setError('Error verifying staff access. Please try again later.');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (scanning && staffStatus?.isApproved) {
       const scanner = new Html5QrcodeScanner(
         'reader',
         {
@@ -45,19 +96,92 @@ const QRScanner = () => {
         scanner.clear();
       };
     }
-  }, [scanning]);
+  }, [scanning, staffStatus]);
 
   const handleScan = async (data) => {
     setScanning(false);
     try {
+      console.log('Raw QR code data:', data);
+      
+      // Check authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please log in to scan QR codes');
+      }
+      
+      console.log('Token found:', token.substring(0, 20) + '...');
+
+      // Parse the QR code data
       const qrData = JSON.parse(data);
-      const response = await axios.get(
-        `http://localhost:5001/api/medical/info/${qrData.patientId}`
+      console.log('Parsed QR data:', qrData);
+
+      // Validate QR code format
+      if (!qrData.type || qrData.type !== 'patient_id' || !qrData.id) {
+        throw new Error('Invalid QR code format');
+      }
+
+      // Log the request details
+      console.log('Making request to:', `${import.meta.env.VITE_API_URL}/medical/scan`);
+      console.log('Request payload:', { patientId: qrData.id });
+      console.log('Request headers:', {
+        Authorization: `Bearer ${token.substring(0, 20)}...`,
+      });
+
+      // Make API request with the patient ID
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/medical/scan`,
+        { patientId: qrData.id },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
-      setMedicalInfo(response.data);
+
+      console.log('API response:', response.data);
+
+      if (!response.data.success || !response.data.data) {
+        throw new Error('Invalid response from server');
+      }
+
+      setMedicalInfo(response.data.data);
       setError('');
     } catch (err) {
-      setError('Error fetching patient information');
+      console.error('Scan error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        headers: err.response?.headers
+      });
+      
+      // Handle different types of errors
+      if (err.response) {
+        // Server responded with an error
+        switch (err.response.status) {
+          case 401:
+            setError('Your session has expired. Please log in again.');
+            navigate('/login');
+            break;
+          case 403:
+            const errorMessage = err.response.data?.message || 'You are not authorized to scan QR codes. Please contact your administrator.';
+            console.log('Authorization error details:', err.response.data);
+            setError(errorMessage);
+            break;
+          case 404:
+            setError('Patient information not found');
+            break;
+          default:
+            setError(err.response.data?.message || 'Error processing QR code');
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        setError('Unable to connect to server. Please check your internet connection.');
+      } else {
+        // Error in request setup
+        setError(err.message || 'Error processing QR code');
+      }
+      
       setMedicalInfo(null);
     }
   };
@@ -68,6 +192,10 @@ const QRScanner = () => {
     setError('');
   };
 
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
   return (
     <Container maxWidth="md">
       <Box sx={{ mt: 4 }}>
@@ -75,110 +203,140 @@ const QRScanner = () => {
           <Typography variant="h4" component="h1" gutterBottom align="center">
             Scan Patient QR Code
           </Typography>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-            {scanning ? (
-              <Box sx={{ width: 300, height: 300 }}>
-                <div id="reader"></div>
-              </Box>
-            ) : (
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h6" gutterBottom>
-                  Scan Complete
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Patient information has been retrieved
-                </Typography>
-              </Box>
-            )}
-          </Box>
 
-          {medicalInfo && (
-            <Card>
-              <CardContent>
-                <Typography variant="h5" gutterBottom>
-                  Patient Information
-                </Typography>
-                <Typography variant="subtitle1" gutterBottom>
-                  Name: {medicalInfo.patient.name}
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Blood Type
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {medicalInfo.bloodType}
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Allergies
-                </Typography>
-                {medicalInfo.allergies.length > 0 ? (
-                  medicalInfo.allergies.map((allergy, index) => (
-                    <Typography key={index} variant="body1">
-                      • {allergy}
-                    </Typography>
-                  ))
-                ) : (
-                  <Typography variant="body1">No allergies listed</Typography>
-                )}
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Medications
-                </Typography>
-                {medicalInfo.medications.length > 0 ? (
-                  medicalInfo.medications.map((med, index) => (
-                    <Typography key={index} variant="body1">
-                      • {med.name} - {med.dosage} - {med.frequency}
-                    </Typography>
-                  ))
-                ) : (
-                  <Typography variant="body1">No medications listed</Typography>
-                )}
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Conditions
-                </Typography>
-                {medicalInfo.conditions.length > 0 ? (
-                  medicalInfo.conditions.map((condition, index) => (
-                    <Typography key={index} variant="body1">
-                      • {condition}
-                    </Typography>
-                  ))
-                ) : (
-                  <Typography variant="body1">No conditions listed</Typography>
-                )}
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Emergency Contact
-                </Typography>
-                <Typography variant="body1">
-                  Name: {medicalInfo.emergencyContact.name}
-                </Typography>
-                <Typography variant="body1">
-                  Relationship: {medicalInfo.emergencyContact.relationship}
-                </Typography>
-                <Typography variant="body1">
-                  Phone: {medicalInfo.emergencyContact.phone}
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-
-          {!scanning && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleReset}
-              >
-                Scan Another QR Code
-              </Button>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+              <CircularProgress />
             </Box>
+          ) : (
+            <>
+              {error && (
+                <Alert 
+                  severity="error" 
+                  sx={{ mb: 2 }}
+                  action={
+                    error.includes('log in') && (
+                      <Button color="inherit" size="small" onClick={handleLogin}>
+                        Log In
+                      </Button>
+                    )
+                  }
+                >
+                  {error}
+                </Alert>
+              )}
+
+              {staffStatus?.isApproved ? (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+                    {scanning ? (
+                      <Box sx={{ width: 300, height: 300 }}>
+                        <div id="reader"></div>
+                      </Box>
+                    ) : (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h6" gutterBottom>
+                          {medicalInfo ? 'Scan Complete' : 'Scan Failed'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {medicalInfo ? 'Patient information has been retrieved' : 'Please try again'}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {medicalInfo && (
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h5" gutterBottom>
+                          Patient Information
+                        </Typography>
+                        <Typography variant="subtitle1" gutterBottom>
+                          Name: {medicalInfo.patient.name}
+                        </Typography>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>
+                          Blood Type
+                        </Typography>
+                        <Typography variant="body1" gutterBottom>
+                          {medicalInfo.bloodType}
+                        </Typography>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>
+                          Allergies
+                        </Typography>
+                        {medicalInfo.allergies.length > 0 ? (
+                          medicalInfo.allergies.map((allergy, index) => (
+                            <Typography key={index} variant="body1">
+                              • {allergy}
+                            </Typography>
+                          ))
+                        ) : (
+                          <Typography variant="body1">No allergies listed</Typography>
+                        )}
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>
+                          Medications
+                        </Typography>
+                        {medicalInfo.medications.length > 0 ? (
+                          medicalInfo.medications.map((med, index) => (
+                            <Typography key={index} variant="body1">
+                              • {med.name} - {med.dosage} - {med.frequency}
+                            </Typography>
+                          ))
+                        ) : (
+                          <Typography variant="body1">No medications listed</Typography>
+                        )}
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>
+                          Conditions
+                        </Typography>
+                        {medicalInfo.conditions.length > 0 ? (
+                          medicalInfo.conditions.map((condition, index) => (
+                            <Typography key={index} variant="body1">
+                              • {condition}
+                            </Typography>
+                          ))
+                        ) : (
+                          <Typography variant="body1">No conditions listed</Typography>
+                        )}
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" gutterBottom>
+                          Emergency Contact
+                        </Typography>
+                        <Typography variant="body1">
+                          Name: {medicalInfo.emergencyContact.name}
+                        </Typography>
+                        <Typography variant="body1">
+                          Relationship: {medicalInfo.emergencyContact.relationship}
+                        </Typography>
+                        <Typography variant="body1">
+                          Phone: {medicalInfo.emergencyContact.phone}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {!scanning && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleReset}
+                      >
+                        Scan Another QR Code
+                      </Button>
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Box sx={{ textAlign: 'center', my: 4 }}>
+                  <Typography variant="body1" color="error" gutterBottom>
+                    {error || 'You do not have permission to scan QR codes'}
+                  </Typography>
+                </Box>
+              )}
+            </>
           )}
         </Paper>
       </Box>

@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 const connectDB = async () => {
   try {
     console.log('=== MongoDB Connection Setup ===');
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/resq';
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resq';
     console.log('Attempting to connect to MongoDB at:', mongoURI);
     
     await mongoose.connect(mongoURI, {
