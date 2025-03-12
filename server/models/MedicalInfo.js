@@ -8,7 +8,8 @@ const medicalInfoSchema = new mongoose.Schema({
     patient: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        index: true
     },
     name: {
         type: String,
@@ -18,7 +19,7 @@ const medicalInfoSchema = new mongoose.Schema({
     bloodType: {
         type: String,
         required: true,
-        enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+        enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
     },
     allergies: [{
         type: String,
@@ -66,6 +67,25 @@ const medicalInfoSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
+// Pre-save middleware to clean data
+medicalInfoSchema.pre('save', function(next) {
+    // Clean arrays
+    if (this.allergies) {
+        this.allergies = this.allergies.filter(allergy => allergy && allergy.trim());
+    }
+    if (this.medications) {
+        this.medications = this.medications.filter(med => med && med.name && med.name.trim());
+    }
+    if (this.conditions) {
+        this.conditions = this.conditions.filter(condition => condition && condition.trim());
+    }
+
+    // Update lastUpdated
+    this.lastUpdated = new Date();
+
+    next();
+});
+
 // Function to generate secure access token
 function generateAccessToken(medicalInfo) {
     const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key';
@@ -106,13 +126,30 @@ medicalInfoSchema.pre('save', async function(next) {
     try {
         // Generate QR code with essential medical info
         const qrData = {
-            id: this._id,
+            __v: 4,
+            id: this._id.toString(),
             name: this.name,
             bloodType: this.bloodType,
-            allergies: this.allergies
+            allergies: this.allergies || [],
+            medications: this.medications.map(med => ({
+                name: med.name,
+                dosage: med.dosage || '',
+                frequency: med.frequency || ''
+            })),
+            conditions: this.conditions || [],
+            emergencyContact: {
+                name: this.emergencyContact?.name || '',
+                relationship: this.emergencyContact?.relationship || '',
+                phone: this.emergencyContact?.phone || ''
+            },
+            lastUpdated: this.lastUpdated || new Date()
         };
         
-        this.qrCode = await QRCode.toDataURL(JSON.stringify(qrData), {
+        // Convert to JSON string with consistent formatting
+        const qrString = JSON.stringify(qrData);
+        
+        // Generate QR code
+        this.qrCode = await QRCode.toDataURL(qrString, {
             errorCorrectionLevel: 'H',
             margin: 1,
             width: 400,
@@ -122,7 +159,6 @@ medicalInfoSchema.pre('save', async function(next) {
             }
         });
         
-        this.lastUpdated = new Date();
         next();
     } catch (error) {
         console.error('Error generating QR code:', error);
@@ -147,7 +183,7 @@ medicalInfoSchema.methods.hasAccess = function(user) {
     if (user.role === 'doctor' || user.role === 'nurse') {
         return true; // Add additional checks if needed
     }
-    return false;
+    return user._id.toString() === this.patient.toString();
 };
 
 // Add a method to transform the document for JSON responses

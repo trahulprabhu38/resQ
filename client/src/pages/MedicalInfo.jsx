@@ -205,8 +205,14 @@ const MedicalInfo = () => {
         return;
       }
 
+      if (!user?.name) {
+        setError('User name is required');
+        return;
+      }
+
       // Clean the data before sending
       const dataToSend = {
+        name: user.name,
         bloodType: medicalInfo.bloodType,
         allergies: medicalInfo.allergies.filter(allergy => allergy.trim() !== ''),
         medications: medicalInfo.medications.filter(med => med.name.trim() !== '').map(med => ({
@@ -221,16 +227,16 @@ const MedicalInfo = () => {
           phone: medicalInfo.emergencyContact?.phone?.trim() || ''
         },
         insuranceInfo: {
-          provider: medicalInfo.insuranceInfo?.provider?.trim() || '',
-          policyNumber: medicalInfo.insuranceInfo?.policyNumber?.trim() || '',
-          groupNumber: medicalInfo.insuranceInfo?.groupNumber?.trim() || ''
+          provider: '',
+          policyNumber: '',
+          groupNumber: ''
         }
       };
 
       console.log('Sending medical info update...', dataToSend);
       
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/medical/update`,
+        `${import.meta.env.VITE_API_URL}/medical`,
         dataToSend,
         {
           headers: { 
@@ -239,6 +245,8 @@ const MedicalInfo = () => {
           }
         }
       );
+
+      console.log('Server response:', response.data);
 
       if (response.data.success) {
         const updatedInfo = response.data.data;
@@ -249,7 +257,11 @@ const MedicalInfo = () => {
           insuranceInfo: updatedInfo.insuranceInfo || {}
         }));
         if (updatedInfo.qrCode) {
+          console.log('Received QR code from server');
           setQrCode(updatedInfo.qrCode);
+        } else {
+          console.error('No QR code in server response');
+          setError('Failed to generate QR code');
         }
         setSuccess('Medical information updated successfully');
         setIsEditing(false);
@@ -259,7 +271,8 @@ const MedicalInfo = () => {
       }
     } catch (err) {
       console.error('Update error:', err);
-      setError(err.response?.data?.message || 'Error updating medical information');
+      const errorMessage = err.response?.data?.message || err.message || 'Error updating medical information';
+      setError(errorMessage);
       if (err.response?.status === 401) {
         navigate('/login');
       }
@@ -319,12 +332,24 @@ const MedicalInfo = () => {
 
   const handleDownloadQR = () => {
     if (qrCode) {
-      const link = document.createElement('a');
-      link.href = qrCode;
-      link.download = `medical-qr-${user?.name || 'patient'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const svg = document.querySelector('.QRCode svg');
+      if (svg) {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const pngFile = canvas.toDataURL('image/png');
+          const downloadLink = document.createElement('a');
+          downloadLink.download = `medical-qr-${user?.name || 'patient'}.png`;
+          downloadLink.href = pngFile;
+          downloadLink.click();
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+      }
     }
   };
 
@@ -657,10 +682,13 @@ const MedicalInfo = () => {
               bgcolor: 'white',
               borderRadius: 1,
               boxShadow: 1
-            }}>
-              <img 
-                src={qrCode} 
-                alt="Medical QR Code"
+            }}
+            className="QRCode">
+              <QRCodeSVG
+                value={qrCode}
+                size={300}
+                level="H"
+                includeMargin={true}
                 style={{ width: '300px', height: '300px' }}
               />
             </Box>
