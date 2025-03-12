@@ -79,7 +79,7 @@ const MedicalInfo = () => {
       console.log('\n=== Fetching Medical Info ===');
       console.log('Auth token:', token.substring(0, 20) + '...');
       
-      const response = await axios.get('http://localhost:5001/api/medical/patient/me', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/medical/patient/me`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -212,7 +212,7 @@ const MedicalInfo = () => {
       console.log('=== Sending Medical Info ===');
       console.log('Data to send:', JSON.stringify(dataToSend, null, 2));
 
-      const response = await axios.post('http://localhost:5001/api/medical', dataToSend, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/medical`, dataToSend, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

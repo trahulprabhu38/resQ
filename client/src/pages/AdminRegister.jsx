@@ -30,7 +30,7 @@ const AdminRegister = () => {
         return;
       }
 
-      const response = await axios.post('http://localhost:5001/api/auth/register', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, {
         name,
         email,
         password,

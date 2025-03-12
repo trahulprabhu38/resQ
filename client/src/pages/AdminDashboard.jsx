@@ -40,7 +40,7 @@ const AdminDashboard = () => {
 
   const fetchAllStaff = async () => {
     try {
-      const response = await axios.get('http://localhost:5001/api/auth/all-staff', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/auth/all-staff`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -58,7 +58,7 @@ const AdminDashboard = () => {
 
   const handleVerify = async (userId) => {
     try {
-      await axios.post(`http://localhost:5001/api/auth/verify-staff/${userId}`, {}, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/verify-staff/${userId}`, {}, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
 
   const handleRevoke = async (userId) => {
     try {
-      await axios.post(`http://localhost:5001/api/auth/revoke-staff/${userId}`, {}, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/revoke-staff/${userId}`, {}, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
