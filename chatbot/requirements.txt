@@ -1,0 +1,17 @@
+streamlit
+langchain-community
+openai
+nltk
+python-dotenv
+transformers
+torch
+emoji
+pymongo
+pandas
+plotly
+wordcloud
+matplotlib
+numpy
+pycryptodome
+PyJWT
+scikit-learn        
