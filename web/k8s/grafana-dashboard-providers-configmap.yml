@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-providers
+  labels:
+    app: grafana
+data:
+  dashboard-providers.yaml: |
+    apiVersion: 1
+    providers:
+      - name: "default"
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: false
+        options:
+          path: /var/lib/grafana/dashboards
+
+
+
+# three clean Kubernetes manifests:
+
+# grafana-deployment.yaml
+
+# Deployment + Service
+
+# Mounts two ConfigMaps (datasources & dashboard providers)
+
+# grafana-datasource-configmap.yaml
+
+# Defines the Prometheus data source for Grafana
+
+# grafana-dashboard-providers-configmap.yaml
+
+# Configures Grafana to load dashboards from a directory

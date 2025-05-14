@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_CREDENTIALS = credentials('dockerhub')
+        AWS_CREDENTIALS = credentials('aws-credentials')
+    }
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/trahulprabhu38/resq-web.git'
+            }
+        }
+        stage('Docker Login') {
+            steps {
+                sh 'docker login'
+            }
+        }
+        stage('Build Docker Images') {
+            steps {
+                sh 'docker build -t trahulprabhu38/resq-frontend:v1.2 --platform linux/amd64 -f ./client/Dockerfile ./client'
+                sh 'docker build -t trahulprabhu38/resq-backend:latest --platform linux/amd64 -f ./server/Dockerfile ./server'
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+                    sh 'docker push trahulprabhu38/resq-frontend:v1.2'
+                    sh 'docker push trahulprabhu38/resq-backend:latest'
+                }
+            }
+        }
+        stage('Terraform Init') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    sh 'terraform init'
+                }
+            }
+        }
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh 'kubectl apply -f k8s/'
+            }
+        }
+    }
+}

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+      - name: client
+        image: trahulprabhu38/resq-frontend:v1.1
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-service
+spec:
+  selector:
+    app: client
+  type: NodePort
+  ports:
+  - protocol: TCP
+    port: 80        # Exposed inside cluster
+    targetPort: 80  # Matches containerPort
+    nodePort: 31085 # External access

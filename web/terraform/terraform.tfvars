@@ -1,0 +1,5 @@
+region          = "us-west-2"
+vpc_cidr        = "10.0.0.0/16"
+subnet_cidr     = "10.0.1.0/24"
+cluster_name    = "my-cluster"
+node_group_name = "my-node-group"
