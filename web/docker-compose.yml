@@ -1,23 +1,45 @@
-version: "3.8"
+version: '3'
 
 services:
-  client:
-    build: ./client
-    ports:
-      - "5173:80"
-    depends_on:
-      - server
-
   server:
-    build: ./server
+    build:
+      context: ./server
+      dockerfile: dockerfile
     ports:
-      - "5001:5000"
+      - "5001:5001"
     environment:
-      - MONGO_URI=${MONGO_URI}
-    env_file:
-      - ./server/.env.production
+      - NODE_ENV=production
+      - PORT=5001
+      - MONGODB_URI=mongodb://mongo:27017/resq-db
+      - JWT_SECRET=your-secret-key-here
+      - JWT_EXPIRES_IN=7d
+      - CORS_ORIGIN=http://localhost:5173
+      - STREAMLIT_URL=http://streamlit:8501
     depends_on:
       - mongo
+      - streamlit
+    networks:
+      - resq-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    networks:
+      - resq-network
+
+  streamlit:
+    build:
+      context: ./client/BLOOD_REPORT
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    networks:
+      - resq-network
 
   mongo:
     image: mongo:latest
@@ -25,17 +47,14 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - resq-network
 
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
-    depends_on:
-      - mongo
+networks:
+  resq-network:
+    driver: bridge
 
 volumes:
-  mongo-data: {}
+  mongo-data:
 
 # https://chatgpt.com/share/6817fa9d-05c4-8003-a12c-9e00846a87d4

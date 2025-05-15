@@ -87,6 +87,19 @@ connectDB().then(async () => {
   app.use('/api/auth', require('./routes/auth.js'));
   app.use('/api/medical', require('./routes/medical.js'));
 
+  // Blood report endpoint
+  app.get('/api/blood-report', (req, res) => {
+    // Return the URL where Streamlit is running
+    // Use env variable or default to localhost:8501
+    const streamlitUrl = process.env.STREAMLIT_URL || 'http://localhost:8501';
+    
+    res.json({ 
+      success: true,
+      message: 'Streamlit application URL',
+      streamlitUrl: streamlitUrl
+    });
+  });
+
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error('=== Global Error Handler ===');
@@ -109,6 +122,7 @@ connectDB().then(async () => {
   app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
     console.log(`CORS enabled for origin: ${process.env.CORS_ORIGIN}`);
+    console.log(`Streamlit should be running separately on ${process.env.STREAMLIT_URL || 'http://localhost:8501'}`);
   });
 }).catch(err => {
   console.error('Failed to start server:', err);

@@ -10,8 +10,12 @@
     "test": "NODE_ENV=test jest",
     "lint": "eslint .",
     "client": "cd client && npm start",
-    "dev:full": "concurrently \"npm run dev\" \"npm run client\""
+    "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
+    "install-python-deps": "pip install -r ../client/BLOOD_REPORT/requirements.txt"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

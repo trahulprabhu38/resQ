@@ -14,6 +14,7 @@ import MedicalInfo from './pages/MedicalInfo';
 import QRScanner from './pages/QRScanner';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminRegister from './pages/AdminRegister';
+import BloodReport from './pages/BloodReport';
 import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
@@ -54,6 +55,14 @@ function App() {
                   element={
                     <PrivateRoute>
                       <MedicalInfo />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/blood-report"
+                  element={
+                    <PrivateRoute>
+                      <BloodReport />
                     </PrivateRoute>
                   }
                 />

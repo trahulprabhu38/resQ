@@ -14,7 +14,6 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import AssessmentIcon from '@mui/icons-material/Assessment';
 import { useAuth } from '../contexts/AuthContext';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import QrCodeIcon from '@mui/icons-material/QrCode';
@@ -88,10 +87,75 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <LocalHospitalIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+                <Typography variant="h6">Blood Report Analysis</Typography>
+              </Box>
+              <Typography variant="body1" paragraph>
+View and analyze your blood reports for detailed insights, health trends, and recommendations              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                onClick={() => navigate('/blood-report')}
+              >
+                View Blood Reports
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+  <Card sx={{ height: '100%' }}>
+    <CardContent>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <BarChartIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+        <Typography variant="h6">Health Analytics Dashboard</Typography>
+      </Box>
+      <Typography variant="body1" paragraph>
+        gain access to your detailed health analytics and insights through our interactive dashboard.
+      </Typography>
+      <Button
+        variant="contained"
+        color="primary"
+        fullWidth
+        onClick={() => window.open('https://checkup-bot.streamlit.app/', '_blank')}
+      >
+        Open Health Analytics Dashboard
+      </Button>
+    </CardContent>
+  </Card>
+</Grid>
+
+<Grid item xs={12} md={4}>
+  <Card sx={{ height: '100%' }}>
+    <CardContent>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <BarChartIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+        <Typography variant="h6">Mental Health Chatbot</Typography>
+      </Box>
+      <Typography variant="body1" paragraph>
+        Get in touch with your own personalised medical chat board, which has expertise in various mental health issues.
+      </Typography>
+      <Button
+        variant="contained"
+        color="primary"
+        fullWidth
+        onClick={() => window.open('https://medchatbot01.streamlit.app/', '_blank')}
+      >
+        Open Mental Health Chatbot
+      </Button>
+    </CardContent>
+  </Card>
+</Grid>
+
       </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
+      {/* <Grid container spacing={3}> */}
+        {/* <Grid item xs={12}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -116,31 +180,30 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12}>
+         <Grid item xs={12}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <AssessmentIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-                <Typography variant="h6">Blood Analytics Report Dashboard</Typography>
+                <BarChartIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+                <Typography variant="h6">Mental Health Chatbot</Typography>
               </Box>
               <Typography variant="body1" paragraph>
-                View your detailed blood report analytics and insights through our interactive dashboard.
-              </Typography>
+Get in touch with your own personalised medical chat board, which has expertise in various mental health issues              </Typography>
               <Button
                 variant="contained"
                 color="primary"
                 size="large"
                 fullWidth
-                startIcon={<AssessmentIcon />}
-                onClick={() => window.open('https://checkup-bot.streamlit.app/', '_blank')}
+                startIcon={<BarChartIcon />}
+                onClick={() => window.open('https://medchatbot01.streamlit.app/', '_blank')}
                 sx={{ mt: 2 }}
               >
-                Open Health Analytics Dashboard
+                Open Mental Health Chatbot
               </Button>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Grid> */}
+      {/* </Grid> */}
     </>
   );
 
