@@ -15,6 +15,7 @@ ResQ revolutionizes healthcare by providing:
 - Gamified challenges to promote daily health tracking and engagement.
 - An intuitive interface for both patients and medical staff.
 
+
 ---
 
 
