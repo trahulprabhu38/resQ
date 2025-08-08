@@ -8,6 +8,7 @@ ResQ is a comprehensive platform that ensures secure access to essential medical
 
 ## 🔍 Overview
 
+
 ResQ revolutionizes healthcare by providing:
 - Instant access to critical health data through secure QR codes.
 - AI-powered daily checkups and report generation shown on the doctor's dashboard
