@@ -19,8 +19,6 @@ ResQ revolutionizes healthcare by providing:
 
 ---
 
-
-
 ### Download APK
 
 <a href="https://github.com/chetanr25/team_27_heretic/raw/refs/heads/main/app-release.apk">
