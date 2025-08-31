@@ -27,3 +27,5 @@ variable "node_group_name" {
   type        = string
   default     = "my-node-group"
 }
+
+
